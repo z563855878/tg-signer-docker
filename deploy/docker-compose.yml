@@ -1,0 +1,25 @@
+# 一体化形态的 compose 写法（等价于 deploy/all-in-one.create.sh）。
+# 用法：cp deploy/docker-compose.yml ./docker-compose.yml，然后 docker compose up -d。
+# 注意 entrypoint-all.sh 必须放在 ./container/entrypoint-all.sh（相对 compose 文件所在目录）。
+
+services:
+  tg-signer:
+    image: ${TG_SIGNER_IMAGE:-ghcr.io/amchii/tg-signer:0.9.2-webui}
+    container_name: tg-signer-runner
+    restart: unless-stopped
+    network_mode: host
+    entrypoint: ["/bin/bash", "/entrypoint-all.sh"]
+    working_dir: /data/.signer
+    volumes:
+      - ./data:/data
+      - /var/log:/var/log
+      - ./container/entrypoint-all.sh:/entrypoint-all.sh:ro
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      TG_PROXY: ${TG_PROXY:-}
+      TG_ACCOUNT: ${TG_ACCOUNT:-my_account}
+      TG_SIGNER_TASK: ${TG_SIGNER_TASK:-my_sign}
+      GUI_PORT: ${GUI_PORT:-9090}
+      TG_SIGNER_WORKDIR: /data/.signer
+      TG_SIGNER_GUI_AUTHCODE: ${TG_SIGNER_GUI_AUTHCODE:?请在 .env 中设置}
+      TG_SIGNER_GUI_STORAGE_SECRET: ${TG_SIGNER_GUI_STORAGE_SECRET:-}
