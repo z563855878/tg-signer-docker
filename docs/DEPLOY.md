@@ -2,6 +2,23 @@
 
 从零部署一套一体化 tg-signer。假设目标机器是 Ubuntu/Debian，已装 Docker，且有能访问 Telegram 的网络出口。
 
+整体流程：
+
+```mermaid
+flowchart TD
+    A["1. clone 仓库<br/>cp .env.example .env"] --> B{"data/.signer/users/<br/>已有 me.json?"}
+    B -->|否| C["2. 临时容器<br/>tg-signer login 登录"]
+    C --> D["3. tg-signer run my_sign<br/>建签到任务，Ctrl+C 退出"]
+    B -->|是| E
+    D --> E["4. all-in-one.create.sh<br/>起一体化容器"]
+    E --> F["5. webui.sh status<br/>看两个 pid + 端口 9090"]
+    F --> G{"浏览器能打开<br/>WebUI?"}
+    G -->|否| H["检查 TG_SIGNER_WORKDIR<br/>是否拼成 .signer/.signer"]
+    H --> E
+    G -->|是| I["6. 可选：配 monitor.env<br/>+ crontab 看门狗"]
+    I --> J["完成"]
+```
+
 ## 0. 环境变量一览
 
 所有脚本都读同一套环境变量。推荐写进 `.env` 后 `source .env` 再执行。
@@ -102,7 +119,35 @@ tg-signer-runner  Up ...
 bash deploy/webui.sh status
 ```
 
-输出包含容器、容器内两个进程、9090 监听、WebUI 工作目录、配置群数与 md5、TimeoutError 次数、runner 子进程启动次数、下次签到时间。
+输出包含容器、容器内两个进程、9090 监听、WebUI 工作目录、配置群数与 md5、TimeoutError 次数、runner 子进程启动次数、下次签到时间。一份正常的 `status` 输出大致是：
+
+```text
+---- 容器（应为 1 个）----
+tg-signer-runner      Up 12 minutes
+---- 容器内进程 ----
+  pid=7
+  pid=9
+---- 端口 9090 ----
+LISTEN 0 4096 0.0.0.0:9090 0.0.0.0:* users:(("python3",pid=7,fd=3))
+---- WebUI 工作目录 ----
+  workdir = /data/.signer
+  任务     = ['my_sign']
+---- 配置 ----
+ 35 个群  md5=3f9a2c11  mtime=2026-11-18 09:42:13
+---- 健康 ----
+ TimeoutError: 0
+ runner 子进程启动次数: 3
+---- 下次签到 ----
+[INFO] 下次运行时间: 2026-11-19 06:04:37
+```
+
+逐项解读：
+
+- **两个 pid 都要在**：只有 1 个说明另一个子进程没起来，去看 `/var/log/tg-signer-all.log`
+- **workdir 必须是 `/data/.signer`**：如果是 `/data/.signer/.signer`，说明少传了 `TG_SIGNER_WORKDIR`，WebUI 会显示空列表
+- **35 个群**：这个数字来自 `config.json` 里 `chats` 数组长度，和看门狗 L3 校验的是同一个数
+- **runner 子进程启动次数: 3**：偶尔增长正常（改配置、自愈都会重启）；短时间暴涨才要看退避日志
+- **下次运行时间**：有这行才说明 runner 的调度循环活着
 
 浏览器访问 `http://<机器IP>:9090`，输入 `TG_SIGNER_GUI_AUTHCODE`。
 
