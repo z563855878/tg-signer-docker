@@ -2,6 +2,27 @@
 
 本方案钉死镜像版本（默认 `0.9.2-webui`），因为群级幂等补丁按源码文本锚点匹配。上游一旦改了那几行，补丁会静默失效。所以升级必须走门禁，不能直接把 `TG_SIGNER_IMAGE` 改成 `latest`。
 
+升级决策流程：
+
+```mermaid
+flowchart TD
+    A["上游发布新版本"] --> B["docker pull 新镜像"]
+    B --> C["抽出 core.py 离线演练补丁"]
+    C --> D{"patch_tg_signer.py --file<br/>的返回码"}
+    D -->|0| E["锚点仍匹配，可以升级"]
+    D -->|2| F["源码结构变了，暂停升级"]
+    D -->|3| G["补丁后语法失败，暂停升级"]
+    E --> H["改 .env 的 TG_SIGNER_IMAGE"]
+    H --> I["all-in-one.create.sh 重建"]
+    I --> J["selftest_skip.py 三阶段自检"]
+    J --> K{"全部 PASS?"}
+    K -->|是| L["升级完成"]
+    K -->|否| M["回滚到旧版本"]
+    F --> N{"上游已内置<br/>群级落盘?"}
+    N -->|是| O["移除补丁调用，正常升级"]
+    N -->|否| P["更新锚点后重跑演练"]
+```
+
 ## 为什么不能直接换 latest
 
 `patch/patch_tg_signer.py` 依赖两个逐字锚点：
