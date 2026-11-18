@@ -4,6 +4,8 @@
 
 这不是 tg-signer 的 fork。上游代码一行没改，本仓库只放运维层脚本和文档。
 
+![一体化部署架构](assets/architecture.svg)
+
 **快速跳转**：[关于](#关于) · [和原版的区别](#和原版的区别) · [架构](#架构) · [部署](#部署) · [使用](#使用) · [升级](#升级) · [目录结构](#目录结构) · [安全](#安全) · [许可与归属](#许可与归属)
 
 ## 关于
@@ -20,6 +22,29 @@
 官方 `docker/README.md` 里那段 `start.sh` 的注释切换，就是这个问题被绕开的样子。
 
 本仓库做的事，是把这四步压缩成「在网页上点保存，几秒后自动生效」，同时不破坏上游、不自己维护一份源码分支。
+
+### 一个具体例子
+
+假设你建了个任务叫 `my_sign`，WebUI 里加了一个群、签到词是「签到」。配置文件长这样：
+
+```json
+{
+  "chats": [
+    {
+      "chat_id": "-1001234567890",
+      "name": "每日签到群",
+      "actions": [{ "action": 1, "text": "签到" }],
+      "action_interval": 1,
+      "delete_after": null
+    }
+  ],
+  "sign_at": "0 6 * * *",
+  "random_seconds": 300,
+  "sign_interval": 3
+}
+```
+
+`sign_at` 是 croniter 表达式：每天 06:00 执行，`random_seconds=300` 表示实际时间在 ±5 分钟内抖动。`sign_interval=3` 是每个群之间的间隔秒数——35 个群大约要跑两分钟，这也是为什么中途断线会是个真问题。
 
 ### 适合 / 不适合
 
@@ -43,6 +68,8 @@
 | 外部看门狗 | 无 | L0 代理 / L1 容器 / L2 崩溃环 / L3 完成度，WxPusher 告警 |
 | 上游代码 | — | **不改**:不重新分发 `tg_signer/*.py` |
 
+![原版与本方案对比](assets/comparison.svg)
+
 逐条展开见 [docs/DIFFERENCES.md](docs/DIFFERENCES.md)。
 
 ## 架构
@@ -64,6 +91,18 @@
 ```
 
 共存能成立的原因：`tg_signer/webui/*.py` 里没有 `pyrogram.Client`，也没有 `subprocess`，WebUI 根本不连 Telegram。所谓「WebUI 和 runner 抢会话会互踢」是不成立的，早期那个崩溃循环是 runner 自身的问题。
+
+配置改完会发生什么：
+
+![配置热重载流程](assets/hot-reload.svg)
+
+群级幂等补丁解决的问题：
+
+![群级签到幂等原理](assets/idempotent.svg)
+
+分层看门狗：
+
+![看门狗四层检查](assets/watchdog.svg)
 
 ## 部署
 
@@ -204,6 +243,7 @@ docker exec tg-signer-runner python3 /data/_patch/selftest_skip.py
 │   └── selftest_skip.py      补丁回归自检（不联网）
 ├── patrol/monitor.sh         分层看门狗
 ├── tools/                    报表解析与群管理脚本
+├── assets/                   架构与流程示意图（SVG）
 └── docs/                     差异、部署、使用、升级、运维手册
 ```
 
