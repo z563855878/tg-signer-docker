@@ -127,7 +127,92 @@ tail -50 /var/log/tg-signer-monitor.log
 2. 日志轮转时一次签到可能被切成两半，解析器已兼容 `tg_checkin.log.[0-9]*`，但最多回溯 3 个
 3. 检查 WebUI「签到记录」tab 有没有当天的记录
 
-## 5. 回滚
+## 5. 一个完整的排障例子
+
+> 场景：早上起来发现没收到日报，WxPusher 推了一条「今日签到未完成」。
+
+**第一步：先看容器还在不在（L1）**
+
+```bash
+docker ps --filter name=tg-signer --format '{{.Names}}\t{{.Status}}'
+```
+
+输出：
+
+```text
+tg-signer-runner      Up 8 hours
+```
+
+容器活着，排除 L1。
+
+**第二步：看入口日志有没有异常（L2）**
+
+```bash
+tail -30 /var/log/tg-signer-all.log
+```
+
+输出：
+
+```text
+[2026-11-18 06:03:11] runner started pid=147
+[2026-11-18 06:03:12] csp-patch: SKIP: 已打过 csp-patch v1，无需重复打补丁
+[2026-11-18 06:04:47] runner died -> restart (#1)
+[2026-11-18 06:04:47] runner started pid=203
+```
+
+看到 `runner died -> restart`，说明子进程崩过一次但入口脚本拉起来了。次数只有 1，不是崩溃环。
+
+**第三步：看签到日志断在哪（L3）**
+
+```bash
+grep -E '开始执行|下次运行时间|TimeoutError|Traceback' /var/log/tg_checkin.log | tail -20
+```
+
+输出：
+
+```text
+[06:03:12] 开始执行: 群A (-1001111111111)
+[06:03:15] 开始执行: 群B (-1002222222222)
+[06:04:47] TimeoutError: ping timed out
+[06:04:47] 开始执行: 群B (-1002222222222)
+```
+
+只有 2 个群，没有「下次运行时间」，说明这一轮没跑完。注意群 B 出现两次——正是群级幂等要防的重复签到。
+
+**第四步：查网络（L0）**
+
+```bash
+curl -s -o /dev/null -w '%{http_code}\n' -x "$TG_PROXY" https://api.telegram.org
+```
+
+返回 `000`，代理不通。看门狗的 L0 已经推过「代理不通」告警，但远程代理它无法自愈。
+
+**结论与处理**
+
+这是典型的「代理中途断了 → runner 超时崩溃 → 入口脚本重启 → 群级补丁让它从第 3 个群继续」。处理：
+
+```bash
+# 1. 修好代理（本机 Clash 或旁路由）
+# 2. 触发重载让 runner 用恢复后的网络重跑剩余群
+bash deploy/webui.sh apply
+
+# 3. 确认补签完成
+grep '下次运行时间' /var/log/tg_checkin.log | tail -1
+```
+
+群级补丁在这里省掉了「1、2 号群被重签一遍」的风险。如果没打补丁，日志里会是群 A、B 又被发一次签到。
+
+**如果补丁没打上呢**
+
+入口日志里会看到 WARN 而不是 `csp-patch: OK`：
+
+```text
+[2026-11-18 06:03:11] WARN: csp-patch 执行失败 rc=2: FAIL: 插入点「sign_once 循环头」匹配 0 次
+```
+
+签到仍然能跑，但失去群级幂等。按 [UPGRADE.md](UPGRADE.md) 处理锚点，或先回滚到已知可用的版本。
+
+## 6. 回滚
 
 ```bash
 # 回滚到上游形态：纯 runner + 独立 WebUI（无热重载、无群级补丁）
@@ -143,7 +228,7 @@ source .env && bash deploy/all-in-one.create.sh
 
 数据全在 `./data`，镜像和脚本回滚都不影响它。
 
-## 6. 换机器接手的前置条件
+## 7. 换机器接手的前置条件
 
 1. 新机器装 Docker，能访问 GHCR
 2. 准备可用的 Telegram 出口和 `TG_PROXY`
@@ -152,7 +237,7 @@ source .env && bash deploy/all-in-one.create.sh
 5. 重装 crontab 两条巡检
 6. 确认 `data/.signer/.gui_storage_secret` 一起带过去，否则 WebUI 需要重新输授权码
 
-## 7. 长期存在的无害现象
+## 8. 长期存在的无害现象
 
 | 现象 | 说明 |
 |---|---|
