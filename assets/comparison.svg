@@ -1,0 +1,69 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 960 560" width="960" height="560" font-family="-apple-system,BlinkMacSystemFont,'Segoe UI','PingFang SC','Microsoft YaHei',sans-serif">
+  <rect width="960" height="560" fill="#ffffff"/>
+  <text x="480" y="38" text-anchor="middle" font-size="21" font-weight="700" fill="#1f2328">原版 vs 本方案：差在那一条桥</text>
+  <text x="480" y="62" text-anchor="middle" font-size="13" fill="#57606a">两个容器都能同时起，但原版改完配置 runner 不认</text>
+
+  <!-- 左：原版 -->
+  <rect x="40" y="88" width="424" height="424" rx="12" fill="#fff5f5" stroke="#cf222e" stroke-width="1.8"/>
+  <rect x="40" y="88" width="424" height="42" rx="12" fill="#ffebe9"/>
+  <path d="M40 130 L464 130" stroke="#cf222e" stroke-width="1"/>
+  <text x="252" y="116" text-anchor="middle" font-size="15" font-weight="700" fill="#a40e26">原版 amchii/tg-signer</text>
+
+  <rect x="64" y="154" width="160" height="58" rx="8" fill="#ffffff" stroke="#cf222e" stroke-width="1.5"/>
+  <text x="144" y="177" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2328">WebUI 容器</text>
+  <text x="144" y="197" text-anchor="middle" font-size="11" fill="#57606a">只写 config.json</text>
+
+  <rect x="280" y="154" width="160" height="58" rx="8" fill="#ffffff" stroke="#cf222e" stroke-width="1.5"/>
+  <text x="360" y="177" text-anchor="middle" font-size="13" font-weight="600" fill="#1f2328">runner 容器</text>
+  <text x="360" y="197" text-anchor="middle" font-size="11" fill="#57606a">启动时读一次配置</text>
+
+  <!-- 断裂的桥 -->
+  <path d="M224 183 L246 183" stroke="#cf222e" stroke-width="2" stroke-dasharray="4 3"/>
+  <path d="M278 183 L300 183" stroke="#cf222e" stroke-width="2" stroke-dasharray="4 3"/>
+  <path d="M252 171 L272 195 M252 195 L272 171" stroke="#cf222e" stroke-width="2"/>
+  <text x="252" y="232" text-anchor="middle" font-size="11" fill="#a40e26">没有任何热更新通道</text>
+
+  <rect x="64" y="256" width="376" height="60" rx="8" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="252" y="279" text-anchor="middle" font-size="12" font-weight="600" fill="#1f2328">save_config() → config.json</text>
+  <text x="252" y="300" text-anchor="middle" font-size="11" fill="#cf222e">runner 进程毫不知情，必须手工重启</text>
+
+  <text x="64" y="344" font-size="12" font-weight="700" fill="#a40e26">官方工作流（docker/README.md）：</text>
+  <rect x="64" y="356" width="376" height="66" rx="7" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="78" y="378" font-size="11" fill="#1f2328">① webgui 配好</text>
+  <text x="78" y="396" font-size="11" fill="#1f2328">② 改 start.sh：sleep infinity → tg-signer run</text>
+  <text x="78" y="414" font-size="11" fill="#1f2328">③ 重启容器，配置才生效</text>
+
+  <text x="64" y="456" font-size="11" fill="#57606a">另有：整轮才写签到记录 · 无窗口保护 · 假死 Docker 看不出来</text>
+  <text x="64" y="482" font-size="11" fill="#57606a">WebUI 只有「保存配置」，没有任何执行按钮</text>
+
+  <!-- 右：本方案 -->
+  <rect x="496" y="88" width="424" height="424" rx="12" fill="#f0fff4" stroke="#1a7f37" stroke-width="1.8"/>
+  <rect x="496" y="88" width="424" height="42" rx="12" fill="#dafbe1"/>
+  <path d="M496 130 L920 130" stroke="#1a7f37" stroke-width="1"/>
+  <text x="708" y="116" text-anchor="middle" font-size="15" font-weight="700" fill="#116329">本方案 tg-signer-docker</text>
+
+  <rect x="520" y="154" width="376" height="72" rx="8" fill="#ffffff" stroke="#1a7f37" stroke-width="1.5"/>
+  <text x="708" y="177" text-anchor="middle" font-size="13" font-weight="700" fill="#116329">一个容器 · entrypoint-all.sh</text>
+  <text x="708" y="197" text-anchor="middle" font-size="11" fill="#57606a">├─ WebUI 子进程　└─ runner 子进程</text>
+  <text x="708" y="215" text-anchor="middle" font-size="11" fill="#57606a">共用 /data/.signer 下同一份 config.json</text>
+
+  <path d="M708 226 L708 252" stroke="#1a7f37" stroke-width="2" fill="none" marker-end="url(#g)"/>
+  <rect x="520" y="256" width="376" height="60" rx="8" fill="#ffffff" stroke="#1a7f37" stroke-width="1.3"/>
+  <text x="708" y="279" text-anchor="middle" font-size="12" font-weight="600" fill="#1f2328">每 10s 比对 config.json 的 md5</text>
+  <text x="708" y="300" text-anchor="middle" font-size="11" fill="#1a7f37">变了 → 只重启 runner 子进程，WebUI 不掉线</text>
+
+  <text x="520" y="344" font-size="12" font-weight="700" fill="#116329">保存后发生的四件事：</text>
+  <rect x="520" y="356" width="376" height="66" rx="7" fill="#ffffff" stroke="#d0d7de"/>
+  <text x="534" y="378" font-size="11" fill="#1f2328">① 网页点保存 → config.json 更新</text>
+  <text x="534" y="396" font-size="11" fill="#1f2328">② 10s 内发现 md5 变化</text>
+  <text x="534" y="414" font-size="11" fill="#1f2328">③ 窗口外立即重载；窗口内延后补做</text>
+
+  <text x="520" y="456" font-size="11" fill="#57606a">另有：群级签到幂等 · 崩溃环退避 · 分层告警看门狗</text>
+  <text x="520" y="482" font-size="11" fill="#57606a">不改上游 Python 源码，只加运维层脚本</text>
+
+  <defs>
+    <marker id="g" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0 0 L10 5 L0 10 z" fill="#1a7f37"/>
+    </marker>
+  </defs>
+</svg>
