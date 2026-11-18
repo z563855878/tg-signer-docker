@@ -36,9 +36,29 @@ WebUI → 配置管理 → Signer → 选择任务 → 编辑 JSON 或用「交�
 
 日志证据在 `/var/log/tg-signer-all.log`：
 
+```text
+[2026-11-18 09:42:13] 配置变更 a1b2c3d4 -> e5f6a7b8，重启 runner 使其生效
+[2026-11-18 09:42:13] runner started pid=147
 ```
-配置变更 a1b2c3d4 -> e5f6a7b8，重启 runner 使其生效
-runner started pid=...
+
+![配置热重载流程](../assets/hot-reload.svg)
+
+一个完整的操作例子：给 `my_sign` 加一个新群。
+
+```bash
+# 1. 先在网页上加好群并保存，或者用命令行（不占 Telegram 会话）
+python3 tools/chats.py add -1001234567890 --name "新签到群" --text 签到
+
+# 2. 看重载有没有发生
+tail -5 /var/log/tg-signer-all.log
+# 期望看到：配置变更 xxxx -> yyyy，重启 runner 使其生效
+
+# 3. 确认新群已被加载，下次签到会覆盖它
+bash deploy/webui.sh status | grep -A2 '配置'
+# 35 个群  ->  36 个群
+
+# 4. 不想等那 10 秒就手工触发
+bash deploy/webui.sh apply
 ```
 
 ### 立即生效
