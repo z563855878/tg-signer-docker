@@ -185,8 +185,9 @@ docker exec tg-signer-runner python3 /data/_patch/selftest_skip.py
 ```
 .
 ├── README.md
-├── LICENSE                 本仓库脚本的 MIT 许可 + 上游 BSD-3 说明
+├── LICENSE                 本仓库脚本的 MIT 许可
 ├── LICENSE.upstream        上游 BSD-3-Clause 全文
+├── NOTICE.md               归属与交叉许可说明
 ├── .env.example            部署参数模板
 ├── monitor.env.example     告警凭据模板
 ├── container/
@@ -216,7 +217,7 @@ docker exec tg-signer-runner python3 /data/_patch/selftest_skip.py
 ## 许可与归属
 
 - 本仓库自有脚本与文档：[MIT](LICENSE)，`Copyright (c) 2026 z563855878`。
-- 上游项目：[amchii/tg-signer](https://github.com/amchii/tg-signer)，[BSD-3-Clause](LICENSE.upstream)，`Copyright (c) 2023, Amchii`。
+- 上游项目：[amchii/tg-signer](https://github.com/amchii/tg-signer)，[BSD-3-Clause](LICENSE.upstream)，`Copyright (c) 2023, Amchii`。完整的归属与交叉许可说明见 [NOTICE.md](NOTICE.md)。
 - `patch/patch_tg_signer.py` 含从上游 `core.py` 逐字复制的锚点字符串，该部分适用上游许可证。
 - 上游作者不背书、不赞助、不参与本仓库；这里说的「原版」和「改进」都只是功能描述，不代表优劣评价。
 
